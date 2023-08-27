@@ -35,11 +35,47 @@ def insert_format_bits(code, format_bits):
         code[r][c] = format_bits[i]
     return code
 
+def ignore(r, c):
+    return r <= 8 and c <= 8 or r <= 8 and c >= 13 or r == 6 or c == 6 or r >= 13 and c < 9 
+
 def read_wrong_bit_sequence(code):
     bits = []
+    for r, row in enumerate(code):
+        for c, bit in enumerate(row):
+            if not(ignore(r, c)):
+                bits.append(bit)
+    return bits
 
-    POSITION_MARKER_SIZE + 2
+def over_write_correct_bit_sequence(code, bits_to_put_in):
+    r = 20
+    c = 20
+    i = 0
+    while i < len(bits_to_put_in):
+        code[r][c] = bits_to_put_in[i]
+        code[r][c-1] = bits_to_put_in[i + 1]
+        i += 2
+        if r == 0 or r == 9 and c <= 8 or r == 9 and c >= 13: # reached the top
+            dr = 1
+            c -= 2
+            if c == 6:
+                c -= 1
+            code[r][c] = bits_to_put_in[i]
+            code[r][c-1] = bits_to_put_in[i + 1]
+            i += 2
+        elif r == 20 or r == 12 and c <= 8: # reached the bottom
+            dr = -1
+            if c == 10:
+                r -= 8
+            if c != 20 and c != 1:
+                c -= 2
+                code[r][c] = bits_to_put_in[i]
+                code[r][c-1] = bits_to_put_in[i + 1]
+                i += 2
 
+        r += dr
+        if r == 6:
+            r += dr  
+    return code      
 
 def collage_images(images, padding):
     (width, height) = images[0].size
@@ -56,22 +92,23 @@ def collage_images(images, padding):
                 
     return image
     
+def qr_code_to_excel(code):
+    strings = []
+    for row in code:
+        strings.append("")
+        for item in row:
+            strings[-1] += "1" if item else "0"
+    print("\n".join(strings))
+
 # Open an image file
 image_path = "chall.png"
 image = Image.open(image_path)
 output_path = "modified_example.png"
 code = image_to_qr(image)
-
-strings = []
-for row in code:
-    strings.append("")
-    for item in row:
-        strings[-1] += "1" if item else "0"
-print("\n".join(strings))
-
-
-# images = [qr_to_image(insert_format_bits(code, form_str)) for form_str in FORMAT_STRINGS]
-# collage_images(images, 100).save(output_path)
+sequence = read_wrong_bit_sequence(code)
+code = over_write_correct_bit_sequence(code, sequence)
+images = [qr_to_image(insert_format_bits(code, form_str)) for form_str in FORMAT_STRINGS]
+collage_images(images, 100).save(output_path)
 
 # # Loop through each pixel in the image
 # for y in range(height):
@@ -88,7 +125,6 @@ print("\n".join(strings))
 #         # image.putpixel((x, y), (inverted_r, inverted_g, inverted_b))
 
 # # Save the modified image
-
 
 # print("Image pixels edited and saved.")
 
